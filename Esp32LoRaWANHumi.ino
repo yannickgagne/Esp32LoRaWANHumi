@@ -41,6 +41,8 @@ const int Channel1 = 1;
 const int resolution = 8;
 const int MoistSensor1Pin = 26;                  // pin 32 before change / 12 bits ADC pin 4 senses the voltage level of the MoistSensor1 (values 0 - 4095)
 
+bool GOTO_DEEPSLEEP = false;
+
 int Moistlevel1 = 0;                            // Variable to store the Moist level for sensor 1 
 unsigned long pub_delay = 300000;
 unsigned long pub_last_tick = 0;
@@ -159,7 +161,9 @@ void onEvent (ev_t ev) {
               Serial.println(F(" bytes of payload"));
             }
             // Schedule next transmission
-            os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
+            // os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
+
+            GOTO_DEEPSLEEP = true;
             break;
         case EV_LOST_TSYNC:
             Serial.println(F("EV_LOST_TSYNC"));
@@ -232,6 +236,13 @@ void do_send(osjob_t* j){
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
+void deepSleepRoutine() {
+  Serial.println("Deep Sleep Routine begun...");
+  Serial.flush();
+  esp_sleep_enable_timer_wakeup(120 * 1000000);
+  esp_deep_sleep_start();
+}
+
 void MeasureMoisture1() {
     Moistlevel1 = 0;
     ledcWrite(Channel1, 128);                             // send a PWM signal of 600 kHz to pin 25 with a dutycycle of 50%
@@ -272,4 +283,11 @@ void setup() {
 
 void loop() {
     os_runloop_once();
+
+    const bool timeCriticalJobs = os_queryTimeCriticalJobs(ms2osticksRound((TX_INTERVAL * 1000)));
+    if (!timeCriticalJobs && GOTO_DEEPSLEEP == true && !(LMIC.opmode & OP_TXRXPEND))
+    {
+        Serial.print("We can deep sleep, good night!");
+        deepSleepRoutine();
+    }
 }

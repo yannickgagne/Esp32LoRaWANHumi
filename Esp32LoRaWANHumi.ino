@@ -69,7 +69,7 @@ static osjob_t sendjob;
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations).
-const unsigned TX_INTERVAL = 300;
+const unsigned TX_INTERVAL = 900;
 
 // Pin mapping
 const lmic_pinmap lmic_pins = {
@@ -239,7 +239,7 @@ void do_send(osjob_t* j){
 void deepSleepRoutine() {
   Serial.println("Deep Sleep Routine begun...");
   Serial.flush();
-  esp_sleep_enable_timer_wakeup(120 * 1000000);
+  esp_sleep_enable_timer_wakeup(TX_INTERVAL * 1000000);
   esp_deep_sleep_start();
 }
 

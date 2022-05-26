@@ -239,7 +239,9 @@ void do_send(osjob_t* j){
 void deepSleepRoutine() {
   Serial.println("Deep Sleep Routine begun...");
   Serial.flush();
+  LMIC_shutdown();
   esp_sleep_enable_timer_wakeup(TX_INTERVAL * 1000000);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
   esp_deep_sleep_start();
 }
 

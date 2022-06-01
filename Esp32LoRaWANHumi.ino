@@ -35,6 +35,15 @@
 #include <hal/hal.h>
 #include <SPI.h>
 
+#define R1 10.1
+#define R2 21.03
+#define VREF 3.3
+
+const int adcpin = 27;
+const int digpin = 16;
+float fVoltage = 0;
+int iVoltage = 0;
+
 const int ToneOutput1 = 25;                     // pin 25 is used for sending a 600 kHz PWM tone to the MoistSensor1 measurement circuit
 const int freq = 600000;
 const int Channel1 = 1;
@@ -64,7 +73,7 @@ void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
 static const u1_t PROGMEM APPKEY[16] = { 0xE4, 0x99, 0x91, 0x84, 0x6A, 0x47, 0x1F, 0xB1, 0xE2, 0x6B, 0xB0, 0x08, 0x43, 0x4E, 0xD4, 0x2D };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
-static uint8_t payload[3];
+static uint8_t payload[5];
 static osjob_t sendjob;
 
 // Schedule TX every this many seconds (might become longer due to duty
@@ -223,6 +232,14 @@ void do_send(osjob_t* j){
 
         payload[0] = moistLow;
         payload[1] = moistHigh;
+
+        getBatteryVoltage();
+
+        byte voltLow = lowByte(iVoltage);
+        byte voltHigh = highByte(iVoltage);
+
+        payload[2] = voltLow;
+        payload[3] = voltHigh;
         
         Serial.print("payload: ");
         for (int x = 0; x < sizeof(payload); x++) {
@@ -263,6 +280,19 @@ void MeasureMoisture1() {
     ledcWrite(Channel1, 0);                                // stop generating PWM tones at pin 25
 }
 
+void getBatteryVoltage() {
+    digitalWrite(digpin, HIGH);
+    delay(200);
+  
+    fVoltage = (analogRead(adcpin) * VREF * (R1 + R2) / R2) / 4095;
+  
+    iVoltage = (fVoltage * 1.0415) * 1000;
+  
+    digitalWrite(digpin, LOW);
+
+    Serial.print("Voltage: ");Serial.println(iVoltage);
+}
+
 void setup() {
     Serial.begin(115200);
     Serial.println(F("Starting"));
@@ -272,6 +302,11 @@ void setup() {
     ledcAttachPin(ToneOutput1, Channel1);           // attach the channel 1 to the GPIO pin 25 for generating a PWM signal of 600kHz  
     pinMode(MoistSensor1Pin, INPUT);               // Initializes the sensor pin (4) for measuring the MoistureLevelValue1
 
+    //Battery level setup
+    analogSetWidth(12);
+    analogSetAttenuation(ADC_11db);
+    pinMode(digpin, OUTPUT);
+  
     // LMIC init
     os_init();
     // Reset the MAC state. Session and pending data transfers will be discarded.
